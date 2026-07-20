@@ -197,6 +197,14 @@ This runs a 7-day report: fetch data, then generate LLM summaries.
 ./run_reports.sh 1    # Last 1 day (latest available)
 ```
 
+### Including User Reviews
+
+```bash
+./weekly_report.sh --reviews        # 7-day vitals + reviews
+./run_reports.sh 14 --reviews       # 14-day vitals + reviews
+./run_reports.sh 7 --reviews-count 20  # 20 latest reviews per app
+```
+
 ### Using a Local LLM
 
 If you prefer a local model (e.g., via Ollama), set the `LOCAL_LLM_COMMAND` in `.env`:
@@ -228,6 +236,47 @@ python3 generate_report.py
 # Use a specific data file
 python3 generate_report.py --file data/vitals_20260511_164757.json
 ```
+
+---
+
+## User Reviews Feature (Optional)
+
+This tool can optionally fetch the latest user reviews from Google Play and include them in the AI report for a richer analysis that correlates user sentiment with app vitals.
+
+### How it works
+
+When `--reviews` is passed, `fetch_data.py` calls the **Google Play Android Publisher API** (`reviews.list`) to retrieve the most recent user reviews for each app.
+
+The reviews are stored alongside vitals in the same JSON file under a `"reviews"` key. When `generate_report.py` runs, the LLM prompt is extended to ask the AI to:
+
+- Identify common praises and complaints in user feedback
+- Note sentiment trends (positive, negative, mixed)
+- Correlate user feedback with vitals spikes (e.g., crash complaints matching a high crashRate)
+- Suggest specific improvements based on actual user comments
+
+### Timeframe behavior
+
+Reviews are fetched as **latest N comments** rather than filtered by date, because reviews can be sparse and a weekly window may contain few or zero new reviews. Use `--reviews-count` to control how many you want.
+
+### Usage
+
+```bash
+# Full pipeline with reviews (default 50 latest)
+./weekly_report.sh --reviews
+
+# Fetch vitals + latest 20 reviews
+python3 fetch_data.py --days 7 --reviews --reviews-count 20
+```
+
+### Required Permissions
+
+The service account needs the **`androidpublisher`** API scope. This is covered by the **"View app data (read-only)"** permission already granted in the Play Console (step 2 of Setup). No additional API enablement is required beyond what's already done for vitals.
+
+### Notes
+
+- Max `--reviews-count` is **100** (API limit per page).
+- If `--reviews` is not passed, the report is generated from vitals only.
+- The reviews API requires the service account to have the `androidpublisher` scope, which is separate from the `playdeveloperreporting` scope used for vitals.
 
 ---
 

@@ -43,6 +43,38 @@ def call_local_llm(prompt):
         print(f"Error calling local LLM: {e}")
         return None
 
+def format_reviews_for_prompt(reviews_data):
+    """
+    Formats user reviews data into a readable markdown section.
+    """
+    if not reviews_data or reviews_data.get("count", 0) == 0:
+        return "No user reviews available for this period."
+    
+    parts = []
+    parts.append(f"Total reviews fetched: {reviews_data['count']}")
+    parts.append("")
+    
+    for i, rev in enumerate(reviews_data["latest"], 1):
+        parts.append(f"### Review {i}")
+        parts.append(f"- **Author:** {rev.get('authorName', 'Anonymous')}")
+        parts.append(f"- **Rating:** {rev.get('starRating', 'N/A')} stars")
+        parts.append(f"- **Date:** {rev.get('lastModified', 'unknown')}")
+        parts.append(f"- **Language:** {rev.get('reviewerLanguage', 'N/A')}")
+        parts.append(f"- **App Version:** {rev.get('appVersionName', 'N/A')}")
+        parts.append(f"- **Thumbs Up:** {rev.get('thumbsUpCount', 0)}  |  **Thumbs Down:** {rev.get('thumbsDownCount', 0)}")
+        
+        text = rev.get('text', '')
+        if text:
+            # Truncate very long reviews to keep prompt manageable
+            if len(text) > 500:
+                text = text[:500] + "..."
+            parts.append(f"- **Comment:** {text}")
+        else:
+            parts.append("- **Comment:** (no text)")
+        parts.append("")
+    
+    return "\n".join(parts)
+
 def format_data_for_prompt(metrics_data):
     formatted_sections = []
     for metric_name, data in metrics_data.items():
@@ -94,6 +126,7 @@ def format_data_for_prompt(metrics_data):
 
 def generate_prompt(app_package, data):
     formatted_metrics = format_data_for_prompt(data['metrics'])
+    
     prompt = f"""
 Analyze the following Google Play Vitals data for the app '{app_package}' and provide a brief report in Markdown.
 The data covers the period from {data['period']['start']} to {data['period']['end']}.
@@ -109,6 +142,29 @@ Please include:
 
 The output must be in Markdown format.
 """
+    
+    # If reviews data is present, append a user feedback analysis section
+    if "reviews" in data:
+        formatted_reviews = format_reviews_for_prompt(data["reviews"])
+        prompt += f"""
+
+---
+
+## User Reviews Analysis
+
+Below are the latest user reviews for '{app_package}'. Please analyze them and incorporate your findings into the report above.
+
+{formatted_reviews}
+
+When analyzing these reviews, please:
+1. Identify the most common praises and complaints.
+2. Note any sentiment trends (positive, negative, mixed).
+3. Correlate user feedback with the vitals data where possible (e.g., users complaining about crashes when crashRate is high).
+4. Suggest specific improvements based on user feedback.
+
+Integrate these findings naturally into the report sections above rather than as a separate block.
+"""
+    
     return prompt
 
 def main():

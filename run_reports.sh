@@ -17,9 +17,11 @@ fi
 
 # Number of days for the report (default to 7 if not provided)
 DAYS=${1:-7}
+# Set to "--reviews" to also fetch user reviews, leave empty to skip
+REVIEWS=${2:-}
 
 echo "Step 1: Fetching data for the last $DAYS days..."
-python3 fetch_data.py --days "$DAYS"
+python3 fetch_data.py --days "$DAYS" $REVIEWS
 
 echo "Step 2: Generating LLM reports..."
 python3 generate_report.py

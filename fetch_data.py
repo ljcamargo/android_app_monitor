@@ -22,6 +22,21 @@ def get_reporting_service():
     )
     return build("playdeveloperreporting", "v1beta1", credentials=credentials)
 
+def get_androidpublisher_service():
+    """
+    Builds a service for the Android Publisher API (used for reviews).
+    Requires the androidpublisher scope in the service account.
+    """
+    credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not credentials_path or not os.path.exists(credentials_path):
+        raise FileNotFoundError(f"Service account file not found at {credentials_path}")
+    
+    credentials = service_account.Credentials.from_service_account_file(
+        credentials_path,
+        scopes=["https://www.googleapis.com/auth/androidpublisher"]
+    )
+    return build("androidpublisher", "v3", credentials=credentials)
+
 def execute_with_freshness_check(resource, name, body):
     """
     Executes a query and retries if a freshness error occurs by adjusting the end date.
@@ -124,10 +139,65 @@ def fetch_vitals(service, package_name, start_date, end_date):
     }
     return data
 
+def fetch_reviews(pub_service, package_name, count):
+    """
+    Fetches the latest user reviews for a given package.
+    Returns a dict with count and a list of review summaries.
+    """
+    print(f"  Fetching up to {count} latest reviews...")
+    
+    max_per_page = min(count, 100)
+    response = pub_service.reviews().list(
+        packageName=package_name,
+        maxResults=max_per_page
+    ).execute()
+    
+    time.sleep(0.15)
+    
+    raw_reviews = response.get("reviews", [])
+    if not raw_reviews:
+        print("  No reviews found.")
+        return {"count": 0, "latest": []}
+    
+    # If user wants more than 100, we'd need pagination. Let's limit to what we get.
+    if count > 100:
+        print(f"  Note: max 100 reviews per request. Got {len(raw_reviews)}. Use --reviews-count N (max 100) to adjust.")
+    
+    reviews = []
+    for rev in raw_reviews:
+        comments = rev.get("comments", [])
+        if not comments:
+            continue
+        # Take the first user comment (most recent)
+        uc = comments[0].get("userComment", {})
+        
+        last_modified_secs = uc.get("lastModified", {}).get("seconds", 0)
+        if last_modified_secs:
+            dt = datetime.fromtimestamp(int(last_modified_secs))
+            last_modified_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            last_modified_str = "unknown"
+        
+        reviews.append({
+            "reviewId": rev.get("reviewId"),
+            "authorName": rev.get("authorName", "Anonymous"),
+            "starRating": uc.get("starRating"),
+            "text": uc.get("text", ""),
+            "thumbsUpCount": uc.get("thumbsUpCount", 0),
+            "thumbsDownCount": uc.get("thumbsDownCount", 0),
+            "lastModified": last_modified_str,
+            "reviewerLanguage": uc.get("reviewerLanguage", ""),
+            "appVersionName": uc.get("appVersionName", ""),
+        })
+    
+    return {"count": len(reviews), "latest": reviews}
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch Google Play Vitals data.")
     parser.add_argument("--packages", type=str, help="Comma separated list of package names")
     parser.add_argument("--days", type=int, default=7, help="Number of days to fetch data for")
+    parser.add_argument("--reviews", action="store_true", help="Also fetch latest user reviews for each app")
+    parser.add_argument("--reviews-count", type=int, default=50, help="Number of latest reviews to fetch per app (max 100)")
     
     args = parser.parse_args()
     
@@ -140,6 +210,11 @@ def main():
         raise ValueError("No package names provided. Use --packages or set PACKAGE_NAMES in .env")
 
     service = get_reporting_service()
+    
+    # Build publisher service only if reviews are requested
+    pub_service = None
+    if args.reviews:
+        pub_service = get_androidpublisher_service()
     
     # Start and end dates must be in the past.
     # The API usually has a delay of 3-5 days (freshness).
@@ -161,6 +236,10 @@ def main():
     for pkg in package_names:
         print(f"Fetching data for {pkg}...")
         data = fetch_vitals(service, pkg.strip(), start_date_dt, end_date_inclusive)
+        
+        if args.reviews:
+            data["reviews"] = fetch_reviews(pub_service, pkg.strip(), args.reviews_count)
+        
         all_data[pkg] = data
             
     filename = f"vitals_{timestamp}.json"
