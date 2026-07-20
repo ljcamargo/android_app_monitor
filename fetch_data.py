@@ -22,9 +22,6 @@ def get_reporting_service():
     )
     return build("playdeveloperreporting", "v1beta1", credentials=credentials)
 
-import re
-from googleapiclient.errors import HttpError
-
 def execute_with_freshness_check(resource, name, body):
     """
     Executes a query and retries if a freshness error occurs by adjusting the end date.
