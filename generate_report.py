@@ -10,7 +10,7 @@ import pandas as pd
 load_dotenv()
 
 def get_latest_data_file():
-    list_of_files = glob.glob('data/vitals_*.json')
+    list_of_files = glob.glob('data/vitals_*.json') + glob.glob('data/reviews_*.json')
     if not list_of_files:
         return None
     return max(list_of_files, key=os.path.getctime)
@@ -125,11 +125,17 @@ def format_data_for_prompt(metrics_data):
     return "\n\n".join(formatted_sections)
 
 def generate_prompt(app_package, data):
-    formatted_metrics = format_data_for_prompt(data['metrics'])
+    
+    if "metrics" in data and data["metrics"]:
+        formatted_metrics = format_data_for_prompt(data["metrics"])
+        period_info = f"The vitals data covers the period from {data['period']['start']} to {data['period']['end']}."
+    else:
+        formatted_metrics = "(No vitals data — reviews-only mode)"
+        period_info = ""
     
     prompt = f"""
-Analyze the following Google Play Vitals data for the app '{app_package}' and provide a brief report in Markdown.
-The data covers the period from {data['period']['start']} to {data['period']['end']}.
+Analyze the following Google Play data for the app '{app_package}' and provide a brief report in Markdown.
+{period_info}
 
 Data:
 {formatted_metrics}
@@ -143,7 +149,7 @@ Please include:
 The output must be in Markdown format.
 """
     
-    # If reviews data is present, append a user feedback analysis section
+    # If reviews data is present, append a dedicated user feedback analysis section
     if "reviews" in data:
         formatted_reviews = format_reviews_for_prompt(data["reviews"])
         prompt += f"""
@@ -152,17 +158,18 @@ The output must be in Markdown format.
 
 ## User Reviews Analysis
 
-Below are the latest user reviews for '{app_package}'. Please analyze them and incorporate your findings into the report above.
+Below are the latest user reviews for '{app_package}'. 
 
 {formatted_reviews}
 
-When analyzing these reviews, please:
-1. Identify the most common praises and complaints.
-2. Note any sentiment trends (positive, negative, mixed).
-3. Correlate user feedback with the vitals data where possible (e.g., users complaining about crashes when crashRate is high).
-4. Suggest specific improvements based on user feedback.
+When analyzing these reviews:
+1. Provide a dedicated **## User Reviews Summary** section in your report with key themes and notable quotes.
+2. Identify the most common praises and complaints.
+3. Note any sentiment trends (positive, negative, mixed).
+4. Correlate user feedback with the vitals data where possible (e.g., users complaining about crashes when crashRate is high).
+5. Suggest specific improvements based on user feedback.
 
-Integrate these findings naturally into the report sections above rather than as a separate block.
+Include the dedicated **## User Reviews Summary** section as a visible part of your final report.
 """
     
     return prompt

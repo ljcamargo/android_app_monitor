@@ -139,9 +139,13 @@ def fetch_vitals(service, package_name, start_date, end_date):
     }
     return data
 
-def fetch_reviews(pub_service, package_name, count):
+def fetch_reviews(pub_service, package_name, count, max_age_days=0):
     """
     Fetches the latest user reviews for a given package.
+    
+    When max_age_days > 0, only reviews within that many days from now are kept
+    (client-side filter, since the API doesn't support date filtering natively).
+    
     Returns a dict with count and a list of review summaries.
     """
     print(f"  Fetching up to {count} latest reviews...")
@@ -159,22 +163,30 @@ def fetch_reviews(pub_service, package_name, count):
         print("  No reviews found.")
         return {"count": 0, "latest": []}
     
-    # If user wants more than 100, we'd need pagination. Let's limit to what we get.
     if count > 100:
-        print(f"  Note: max 100 reviews per request. Got {len(raw_reviews)}. Use --reviews-count N (max 100) to adjust.")
+        print(f"  Note: max 100 reviews per request. Got {len(raw_reviews)}.")
+    
+    # Calculate cutoff timestamp if age filtering is requested
+    cutoff_dt = None
+    if max_age_days > 0:
+        cutoff_dt = datetime.utcnow() - timedelta(days=max_age_days)
+        print(f"  Filtering to reviews from the last {max_age_days} days (since {cutoff_dt.strftime('%Y-%m-%d')})")
     
     reviews = []
     for rev in raw_reviews:
         comments = rev.get("comments", [])
         if not comments:
             continue
-        # Take the first user comment (most recent)
         uc = comments[0].get("userComment", {})
         
         last_modified_secs = uc.get("lastModified", {}).get("seconds", 0)
         if last_modified_secs:
-            dt = datetime.fromtimestamp(int(last_modified_secs))
-            last_modified_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+            review_dt = datetime.fromtimestamp(int(last_modified_secs))
+            last_modified_str = review_dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Apply age filter if requested
+            if cutoff_dt and review_dt < cutoff_dt:
+                continue
         else:
             last_modified_str = "unknown"
         
@@ -193,11 +205,15 @@ def fetch_reviews(pub_service, package_name, count):
     return {"count": len(reviews), "latest": reviews}
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch Google Play Vitals data.")
+    parser = argparse.ArgumentParser(description="Fetch Google Play data.")
     parser.add_argument("--packages", type=str, help="Comma separated list of package names")
-    parser.add_argument("--days", type=int, default=7, help="Number of days to fetch data for")
-    parser.add_argument("--reviews", action="store_true", help="Also fetch latest user reviews for each app")
+    parser.add_argument("--days", type=int, default=7, help="Number of days to fetch vitals data for")
+    parser.add_argument("--reviews", action="store_true", help="Also fetch user reviews for each app")
+    parser.add_argument("--reviews-only", action="store_true", help="Skip vitals, only fetch latest user reviews")
     parser.add_argument("--reviews-count", type=int, default=50, help="Number of latest reviews to fetch per app (max 100)")
+    parser.add_argument("--reviews-days", type=int, default=0,
+        help="Filter reviews by age in days. Defaults to --days value when combined with --reviews. "
+             "0 = no filter (fetch latest N, ignoring time). Use with --reviews-only to get a time-bounded snapshot.")
     
     args = parser.parse_args()
     
@@ -209,21 +225,30 @@ def main():
     else:
         raise ValueError("No package names provided. Use --packages or set PACKAGE_NAMES in .env")
 
-    service = get_reporting_service()
-    
-    # Build publisher service only if reviews are requested
+    # Build services lazily
+    reporting_service = None
     pub_service = None
-    if args.reviews:
+    
+    if args.reviews_only or args.reviews:
         pub_service = get_androidpublisher_service()
     
-    # Start and end dates must be in the past.
-    # The API usually has a delay of 3-5 days (freshness).
-    # We'll start with a 2-day lag and let the dynamic retry logic 
-    # adjust it based on the actual API freshness if needed.
+    if not args.reviews_only:
+        reporting_service = get_reporting_service()
+    
+    # Determine review timeframe:
+    # - --reviews (with vitals): defaults to same --days value
+    # - --reviews-only: defaults to 0 (no time filter, latest N)
+    # - --reviews-days overrides either mode
+    if args.reviews_days > 0:
+        reviews_max_age = args.reviews_days
+    elif args.reviews_only:
+        reviews_max_age = 0  # no filter, fetch latest N
+    else:
+        reviews_max_age = args.days  # match vitals timeframe
+    
+    # Vitals date calculation (only used when not reviews-only)
     end_date_dt = datetime.utcnow() - timedelta(days=2)
     start_date_dt = end_date_dt - timedelta(days=args.days)
-    
-    # Ensure endTime is after startTime
     end_date_inclusive = end_date_dt + timedelta(days=1)
     
     data_dir = "data"
@@ -235,14 +260,19 @@ def main():
     all_data = {}
     for pkg in package_names:
         print(f"Fetching data for {pkg}...")
-        data = fetch_vitals(service, pkg.strip(), start_date_dt, end_date_inclusive)
         
-        if args.reviews:
-            data["reviews"] = fetch_reviews(pub_service, pkg.strip(), args.reviews_count)
+        if args.reviews_only:
+            data = {"package_name": pkg.strip()}
+        else:
+            data = fetch_vitals(reporting_service, pkg.strip(), start_date_dt, end_date_inclusive)
+        
+        if args.reviews or args.reviews_only:
+            data["reviews"] = fetch_reviews(pub_service, pkg.strip(), args.reviews_count, reviews_max_age)
         
         all_data[pkg] = data
             
-    filename = f"vitals_{timestamp}.json"
+    prefix = "reviews" if args.reviews_only else "vitals"
+    filename = f"{prefix}_{timestamp}.json"
     filepath = os.path.join(data_dir, filename)
     
     with open(filepath, "w") as f:

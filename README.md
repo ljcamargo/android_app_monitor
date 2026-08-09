@@ -200,10 +200,26 @@ This runs a 7-day report: fetch data, then generate LLM summaries.
 ### Including User Reviews
 
 ```bash
-./weekly_report.sh --reviews        # 7-day vitals + reviews
-./run_reports.sh 14 --reviews       # 14-day vitals + reviews
-./run_reports.sh 7 --reviews-count 20  # 20 latest reviews per app
+./weekly_report.sh --reviews        # 7-day vitals + 7-day reviews (default)
+./run_reports.sh 14 --reviews       # 14-day vitals + 14-day reviews
+./run_reports.sh 7 --reviews-count 20  # 20 latest reviews per app, no time filter
+./run_reports.sh 7 --reviews --reviews-days 30  # 7-day vitals + 30-day reviews
 ```
+
+By default, when `--reviews` is used with vitals, reviews are filtered to the **same timeframe** as vitals (`--days`). Use `--reviews-days` to set an independent timeframe. Set `--reviews-days 0` to fetch the latest N reviews without time filtering.
+
+### Reviews Only (skip vitals entirely)
+
+```bash
+./run_reports.sh --reviews-only                # Latest 50 reviews, no time filter
+./run_reports.sh --reviews-only --reviews-days 7  # Reviews from last 7 days only
+
+# Or directly, with more control:
+python3 fetch_data.py --reviews-only --reviews-count 30 --reviews-days 14
+python3 generate_report.py
+```
+
+When run in `--reviews-only` mode, the script only queries the Android Publisher API for user reviews, ignoring vitals entirely. The resulting data file is named `reviews_TIMESTAMP.json` instead of `vitals_TIMESTAMP.json`. The LLM report will contain a dedicated **User Reviews Summary** section.
 
 ### Using a Local LLM
 
@@ -249,14 +265,24 @@ When `--reviews` is passed, `fetch_data.py` calls the **Google Play Android Publ
 
 The reviews are stored alongside vitals in the same JSON file under a `"reviews"` key. When `generate_report.py` runs, the LLM prompt is extended to ask the AI to:
 
-- Identify common praises and complaints in user feedback
+- Provide a **dedicated `## User Reviews Summary` section** in the report with key themes and notable quotes
+- Identify common praises and complaints
 - Note sentiment trends (positive, negative, mixed)
-- Correlate user feedback with vitals spikes (e.g., crash complaints matching a high crashRate)
+- Correlate user feedback with vitals spikes where possible
 - Suggest specific improvements based on actual user comments
 
-### Timeframe behavior
+The dedicated section ensures reviews are always visible in the output, even when the AI also integrates them into other parts of the report.
 
-Reviews are fetched as **latest N comments** rather than filtered by date, because reviews can be sparse and a weekly window may contain few or zero new reviews. Use `--reviews-count` to control how many you want.
+### Reviews-only mode
+
+Use `--reviews-only` to fetch and analyze reviews without querying vitals at all. This is useful for quick check-ins or when you only care about user sentiment.
+
+```bash
+python3 fetch_data.py --reviews-only --reviews-count 30
+python3 generate_report.py
+```
+
+The output file is named `reviews_TIMESTAMP.json` to distinguish it from combined data files.
 
 ### Usage
 
