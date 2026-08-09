@@ -1,4 +1,5 @@
 service_account.json
 .env
 *.pyc
+__pycache__/
 data

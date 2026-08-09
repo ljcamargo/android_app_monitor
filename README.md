@@ -14,8 +14,12 @@ A tool to regularly fetch Google Play Vitals data (ANR rates, crash rates, slow 
 - [Usage](#usage)
   - [Quick Start](#quick-start)
   - [Custom Time Ranges](#custom-time-ranges)
+  - [Including User Reviews](#including-user-reviews)
+  - [Reviews Only (skip vitals entirely)](#reviews-only-skip-vitals-entirely)
   - [Using a Local LLM](#using-a-local-llm)
   - [Manual Invocation](#manual-invocation)
+- [Examples](#examples)
+- [User Reviews Feature (Optional)](#user-reviews-feature-optional)
 - [Output](#output)
 - [Architecture & Extending](#architecture--extending)
   - [Current Structure](#current-structure)
@@ -35,25 +39,25 @@ The system is composed of two independent scripts orchestrated by a shell helper
 
 ```
                      ┌──────────────────────┐
-                     │  Google Play API      │
-                     │  (Developer Reporting)│
+                     │ Google Play API      │
+                     │ (Developer Reporting)│
                      └──────────┬───────────┘
                                 │ daily vitals
                                 ▼
                      ┌──────────────────────┐
                      │   fetch_data.py      │
-                     │   → data/vitals_*.json│
+                     │ → data/vitals_*.json │
                      └──────────┬───────────┘
                                 │ JSON data
                                 ▼
                      ┌──────────────────────┐
                      │  generate_report.py  │
-                     │  (Gemini / local LLM) │
+                     │ (Gemini / local LLM) │
                      └──────────┬───────────┘
                                 │ .md report per app
                                 ▼
                      ┌──────────────────────┐
-                     │ data/vitals_*_app.md  │
+                     │ data/vitals_*_app.md │
                      └──────────────────────┘
 ```
 
@@ -107,7 +111,7 @@ This is the most important step. Follow it carefully.
 > **Where to place the file:**
 > Place the downloaded JSON key file in the root of this project directory:
 > ```
-> /home/lsjcp/py/yocdmx_monitor/service_account.json
+> <project_root>/service_account.json
 > ```
 > The default `.env.example` expects the file to be named `service_account.json` in the project root. You can use a different path by updating `GOOGLE_APPLICATION_CREDENTIALS` in `.env`.
 
@@ -153,8 +157,8 @@ PACKAGE_NAMES=com.example.app1,com.example.app2,com.example.app3
 #### Where to find your package names:
 
 - Open the [Google Play Console](https://play.google.com/console/).
-- Go to **All apps** — each app's package name is listed under its icon (e.g., `org.nehuatl.cdmx`).
-- You can also find it in the URL when viewing an app: `https://play.google.com/console/developers/.../app/org.nehuatl.cdmx/...`
+- Go to **All apps** — each app's package name is listed under its icon (e.g., `com.example.transit`).
+- You can also find it in the URL when viewing an app: `https://play.google.com/console/developers/.../app/com.example.transit/...`
 
 #### Where to get a Gemini API key:
 
@@ -252,6 +256,19 @@ python3 generate_report.py
 # Use a specific data file
 python3 generate_report.py --file data/vitals_20260511_164757.json
 ```
+
+---
+
+## Examples
+
+Sanitized example outputs are provided in the [`examples/`](examples/) directory to help you understand what the tool produces:
+
+| File | Description |
+|---|---|
+| [`examples/example_report.md`](examples/example_report.md) | A sample AI-generated report (vitals + user reviews) with app names and user identities redacted |
+| [`examples/example_data.json`](examples/example_data.json) | A synthetic sample of the JSON data structure produced by `fetch_data.py`, with fictional values |
+
+> **Privacy note:** The examples are sanitized — app package names, user names, and metrics are fictional or redacted. Your real reports are stored locally in `data/`, which is gitignored and never committed.
 
 ---
 
@@ -379,7 +396,8 @@ All output goes to the `data/` directory.
 ├── generate_report.py    # LLM reporter: reads JSON, generates .md per app
 ├── run_reports.sh        # Bash orchestrator: fetch + report
 ├── weekly_report.sh      # Convenience: 7-day report shortcut
-├── .env                  # Your credentials and configuration
+├── examples/             # Sanitized sample outputs (report + JSON structure)
+├── .env                  # Your credentials and configuration (gitignored)
 ├── .env.example          # Template for .env
 ├── service_account.json  # Your Google service account key (gitignored)
 ├── requirements.txt      # Python dependencies
@@ -455,4 +473,4 @@ Set `GEMINI_API_KEY` in your `.env` file. See [section 3.2](#where-to-get-a-gemi
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).

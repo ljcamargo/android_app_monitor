@@ -1,0 +1,123 @@
+{
+  "com.example.app": {
+    "package_name": "com.example.app",
+    "metrics": {
+      "anrRate": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 7, "day": 31, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [],
+            "metrics": [
+              {"metric": "anrRate", "decimalValue": {"value": "0.0000"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1200"}}
+            ]
+          },
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 4, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [],
+            "metrics": [
+              {"metric": "anrRate", "decimalValue": {"value": "0.0100"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1180"}}
+            ]
+          }
+        ]
+      },
+      "crashRate": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 1, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [],
+            "metrics": [
+              {"metric": "crashRate", "decimalValue": {"value": "0.0000"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1250"}}
+            ]
+          }
+        ]
+      },
+      "slowStartRate": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 1, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [{"dimension": "startType", "stringValue": "COLD"}],
+            "metrics": [
+              {"metric": "slowStartRate", "decimalValue": {"value": "0.0290"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "900"}}
+            ]
+          },
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 2, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [{"dimension": "startType", "stringValue": "COLD"}],
+            "metrics": [
+              {"metric": "slowStartRate", "decimalValue": {"value": "0.0800"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "870"}}
+            ]
+          }
+        ]
+      },
+      "stuckBackgroundWakelockRate": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 3, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [],
+            "metrics": [
+              {"metric": "stuckBgWakelockRate", "decimalValue": {"value": "0.0000"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1100"}}
+            ]
+          }
+        ]
+      },
+      "excessiveWakeupRate": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 3, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [],
+            "metrics": [
+              {"metric": "excessiveWakeupRate", "decimalValue": {"value": "0.0000"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1100"}}
+            ]
+          }
+        ]
+      },
+      "errorCounts": {
+        "rows": [
+          {
+            "aggregationPeriod": "DAILY",
+            "startTime": {"year": 2026, "month": 8, "day": 4, "timeZone": {"id": "America/Los_Angeles"}},
+            "dimensions": [{"dimension": "reportType", "stringValue": "ANR"}],
+            "metrics": [
+              {"metric": "errorReportCount", "integerValue": {"value": "1"}},
+              {"metric": "distinctUsers", "integerValue": {"value": "1"}}
+            ]
+          }
+        ]
+      }
+    },
+    "period": {
+      "start": "2026-07-31T00:00:00",
+      "end": "2026-08-08T00:00:00"
+    },
+    "reviews": {
+      "count": 1,
+      "latest": [
+        {
+          "reviewId": "00000000-0000-0000-0000-000000000000",
+          "authorName": "Anonymous",
+          "starRating": 1,
+          "text": "too many ads",
+          "thumbsUpCount": 0,
+          "thumbsDownCount": 0,
+          "lastModified": "2026-08-04 03:54:05",
+          "reviewerLanguage": "en",
+          "appVersionName": "1.2.3"
+        }
+      ]
+    }
+  }
+}
