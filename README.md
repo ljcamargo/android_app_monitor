@@ -1,6 +1,44 @@
 # Google Play Vitals Monitor & LLM Reporter
 
-A tool to regularly fetch Google Play Vitals data (ANR rates, crash rates, slow starts, etc.) across all your apps and generate AI-powered summaries and recommendations using Google Gemini (or a local LLM).
+**Turn Google Play Vitals into actionable insights — automatically.**
+
+This tool pulls your apps' stability and performance data (ANRs, crashes, slow starts, background wakelocks) plus the latest user reviews from the Google Play APIs, then uses an LLM (Google Gemini, or any local model) to write a plain-language report with trends and concrete recommendations — no dashboard digging required.
+
+## ✨ Highlights
+
+- 📊 **One command, full summary** — a single `./weekly_report.sh` fetches all the data and produces an AI-written Markdown report per app.
+- 🧠 **Vitals + user reviews in one report** — the AI correlates crash spikes with what users are actually complaining about.
+- 🔀 **Flexible timeframes** — daily, weekly, or custom windows; reviews can be fetched as "latest N" or time-bounded.
+- 🔒 **No secrets stored** — credentials live in your local `.env`; nothing is committed.
+- 🧩 **Extensible** — designed so new data sources (ratings, subscriptions, etc.) can be added cleanly.
+
+## 🚀 Quick demo
+
+Once configured (see [Setup Guide](#setup-guide)), a single run gives you everything:
+
+```bash
+./weekly_report.sh --reviews
+```
+
+That one command: fetches 7 days of vitals + the latest user reviews for every app in your account, then generates a report like this per app:
+
+```markdown
+# App Vitals & User Review Report: `com.example.app`
+
+- Crash rate: 0% across the whole period ✅
+- ANR spikes on Aug 4–5 (0.01%–0.0115%) — single-user, persistent issue
+- Cold start 3%–8% — main optimization opportunity
+- User feedback: "too many ads" (1★) posted same day as an ANR spike → ad-loading may be blocking startup
+
+**Top recommendations:**
+1. Move non-critical init tasks off the main thread
+2. Delay ad loading until after first frame
+3. Investigate ANR correlation with launch sequence
+```
+
+Full sample output: [`examples/example_report.md`](examples/example_report.md) · Data structure: [`examples/example_data.json`](examples/example_data.json)
+
+---
 
 ## Table of Contents
 
@@ -473,4 +511,4 @@ Set `GEMINI_API_KEY` in your `.env` file. See [section 3.2](#where-to-get-a-gemi
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [Apache License 2.0](LICENSE).
