@@ -1,0 +1,97 @@
+{
+  "publisher_id": "pub-0000000000000000",
+  "period": {
+    "start": "2026-08-05",
+    "end": "2026-08-11"
+  },
+  "currency": "USD",
+  "apps": {
+    "com.example.app": {
+      "app_key": "0000000001",
+      "ad_units": {
+        "ca-app-pub-0000000000000000/1111111111": {
+          "ad_format": "BANNER",
+          "rows": [
+            {
+              "date": "2026-08-05",
+              "app_key": "0000000001",
+              "ad_unit_id": "ca-app-pub-0000000000000000/1111111111",
+              "ad_requests": 1840,
+              "matched_requests": 921,
+              "impressions": 462,
+              "clicks": 2,
+              "estimated_earnings": 0.16,
+              "impression_ctr": 0.00433,
+              "impression_rpm": 0.35,
+              "match_rate": 0.5005,
+              "show_rate": 0.5016
+            },
+            {
+              "date": "2026-08-06",
+              "app_key": "0000000001",
+              "ad_unit_id": "ca-app-pub-0000000000000000/1111111111",
+              "ad_requests": 3911,
+              "matched_requests": 1643,
+              "impressions": 821,
+              "clicks": 3,
+              "estimated_earnings": 0.28,
+              "impression_ctr": 0.00365,
+              "impression_rpm": 0.34,
+              "match_rate": 0.4201,
+              "show_rate": 0.4997
+            }
+          ],
+          "totals": {
+            "ad_requests": 5751,
+            "matched_requests": 2564,
+            "impressions": 1283,
+            "clicks": 5,
+            "estimated_earnings": 0.44,
+            "ctr": 0.0039,
+            "ecpm": 0.34,
+            "match_rate": 0.4458
+          }
+        },
+        "ca-app-pub-0000000000000000/2222222222": {
+          "ad_format": "APP_OPEN",
+          "rows": [
+            {
+              "date": "2026-08-05",
+              "app_key": "0000000001",
+              "ad_unit_id": "ca-app-pub-0000000000000000/2222222222",
+              "ad_requests": 45,
+              "matched_requests": 44,
+              "impressions": 41,
+              "clicks": 5,
+              "estimated_earnings": 0.09,
+              "impression_ctr": 0.12195,
+              "impression_rpm": 2.27,
+              "match_rate": 0.9778,
+              "show_rate": 0.9318
+            }
+          ],
+          "totals": {
+            "ad_requests": 45,
+            "matched_requests": 44,
+            "impressions": 41,
+            "clicks": 5,
+            "estimated_earnings": 0.09,
+            "ctr": 0.12195,
+            "ecpm": 2.27,
+            "match_rate": 0.9778
+          }
+        }
+      },
+      "totals": {
+        "ad_requests": 5796,
+        "matched_requests": 2608,
+        "impressions": 1324,
+        "clicks": 10,
+        "estimated_earnings": 0.53,
+        "ctr": 0.0076,
+        "ecpm": 0.4,
+        "match_rate": 0.45
+      }
+    }
+  }
+}

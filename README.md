@@ -8,6 +8,7 @@ This tool pulls your apps' stability and performance data (ANRs, crashes, slow s
 
 - 📊 **One command, full summary** — a single `./weekly_report.sh` fetches all the data and produces an AI-written Markdown report per app.
 - 🧠 **Vitals + user reviews in one report** — the AI correlates crash spikes with what users are actually complaining about.
+- 💰 **AdMob monetization monitoring** — a standalone script tracks impressions, clicks, earnings, eCPM and fill rates per ad unit, with its own AI report (user-OAuth based).
 - 🔀 **Flexible timeframes** — daily, weekly, or custom windows; reviews can be fetched as "latest N" or time-bounded.
 - 🔒 **No secrets stored** — credentials live in your local `.env`; nothing is committed.
 - 🧩 **Extensible** — designed so new data sources (ratings, subscriptions, etc.) can be added cleanly.
@@ -58,6 +59,10 @@ Full sample output: [`examples/example_report.md`](examples/example_report.md) �
   - [Manual Invocation](#manual-invocation)
 - [Examples](#examples)
 - [User Reviews Feature (Optional)](#user-reviews-feature-optional)
+- [AdMob Monitoring (Optional)](#admob-monitoring-optional)
+  - [AdMob OAuth Setup](#admob-oauth-setup)
+  - [AdMob Usage](#admob-usage)
+  - [AdMob Ad Units Configuration](#admob-ad-units-configuration)
 - [Output](#output)
 - [Architecture & Extending](#architecture--extending)
   - [Current Structure](#current-structure)
@@ -305,6 +310,8 @@ Sanitized example outputs are provided in the [`examples/`](examples/) directory
 |---|---|
 | [`examples/example_report.md`](examples/example_report.md) | A sample AI-generated report (vitals + user reviews) with app names and user identities redacted |
 | [`examples/example_data.json`](examples/example_data.json) | A synthetic sample of the JSON data structure produced by `fetch_data.py`, with fictional values |
+| [`examples/example_admob_report.md`](examples/example_admob_report.md) | A sample AI-generated AdMob monetization report, with IDs and figures fictionalized |
+| [`examples/example_admob_data.json`](examples/example_admob_data.json) | A synthetic sample of the JSON produced by `fetch_admob.py`, with fictional values |
 
 > **Privacy note:** The examples are sanitized — app package names, user names, and metrics are fictional or redacted. Your real reports are stored locally in `data/`, which is gitignored and never committed.
 
@@ -361,6 +368,122 @@ The service account needs the **`androidpublisher`** API scope. This is covered 
 
 ---
 
+## AdMob Monitoring (Optional)
+
+A standalone script, [`fetch_admob.py`](fetch_admob.py), monitors your ad monetization: impressions, clicks, earnings, eCPM, match rate and more — per app and per ad unit — and generates an AI-written monetization report with actionable recommendations (e.g., low fill rates, underperforming ad units, placement suggestions).
+
+It is fully independent from the vitals/reviews scripts (no shared code, no shared config beyond the same `.env` file).
+
+### Why AdMob needs its own auth (important)
+
+**AdMob does NOT support service accounts.** Unlike the Play Developer Reporting and Android Publisher APIs (which work with your `service_account.json`), the AdMob API requires **user-based OAuth 2.0**: a real Google Account with access to your AdMob account must authorize the tool once, generating a long-lived **refresh token** that the script reuses automatically.
+
+### AdMob OAuth Setup
+
+Follow these steps once. They are fiddly — read all of them before starting.
+
+#### 1. Enable the AdMob API
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), select your project.
+2. Go to **APIs & Services > Library** and enable the **Google AdMob API** (`admob.googleapis.com`).
+
+#### 2. Create the OAuth consent screen (first time only)
+
+> This is the step most people trip on. You must configure a consent screen even though this is a personal tool.
+
+1. Go to **APIs & Services > OAuth consent screen**.
+2. Choose **External** user type (required for any app using OAuth with a personal Google account; **Internal** is only available for Google Workspace organizations).
+3. Fill in the required fields: app name, support email, and developer contact email.
+4. **Add yourself as a test user** — see the caveat below.
+5. Save.
+
+**The tester caveat (critical):**
+
+- Unless your project is submitted for **Google verification** (which requires logos, privacy policy, review, and is meant for public apps), the consent screen is in **"Testing"** mode. In testing mode, **only accounts you explicitly list as test users** can authorize.
+- You are the owner of the AdMob account, the Cloud project, *and* the Google account — but that is **not enough**. You must **manually add your own email address to the test users list** in the OAuth consent screen, or the authorization will fail with an `access_denied` / "app not verified" error.
+- Add your email under **Audience > Test users > Add users**, then save.
+
+#### 3. Create an OAuth client ID
+
+1. Go to **APIs & Services > Credentials > Create Credentials > OAuth client ID**.
+2. Choose **Desktop app** as the application type (simplest for a local script — no redirect URIs needed).
+3. Click **Create**, then **Download JSON**. Save it somewhere you can reference (e.g., `admob_oauth_client.json` in the project root).
+
+#### 4. Invite your Google account in AdMob
+
+1. Go to [apps.admob.com](https://apps.admob.com) > **Settings > Users**.
+2. Click **Add user** and enter the email of the Google account you will authorize with (the same one you added as a test user).
+3. Choose a role (e.g., "Read only" — this tool only reads).
+4. Accept the invite from that email account.
+
+#### 5. Generate the refresh token
+
+```bash
+python3 admob_oauth_setup.py --client-json admob_oauth_client.json
+```
+
+A browser opens → log in with the invited Google account → accept the consent. The script prints:
+
+```
+ADMOB_REFRESH_TOKEN=1//xxxx
+ADMOB_CLIENT_ID=xxxx.apps.googleusercontent.com
+ADMOB_CLIENT_SECRET=xxxx
+```
+
+**Add these keys manually to your `.env` file.** The script does not modify `.env` for you — copy the three lines into it yourself (see `.env.example` for the layout).
+
+> **Heads-up:** For unverified (testing-mode) apps, Google may revoke refresh tokens that go unused for ~6 months, or when the test user list changes. If you later hit an `invalid_grant` / 401 error, just re-run this step.
+
+### AdMob Usage
+
+```bash
+# Quick start: auto-discover apps & ad units, 7-day report + LLM summary
+./run_admob.sh 7 --discover
+
+# Fetch only (no LLM)
+python3 fetch_admob.py --days 7 --discover --fetch-only
+
+# LLM report from an existing JSON file
+python3 fetch_admob.py --file data/admob_20260812_*.json
+
+# Restrict to specific apps
+python3 fetch_admob.py --days 7 --discover --packages com.example.app1,com.example.app2
+
+# Use a local LLM instead of Gemini
+python3 fetch_admob.py --days 7 --discover --local
+```
+
+Notes:
+- The script **auto-discovers** all linked apps and ad units via the API (`--discover`), so you don't need to declare them.
+- Report period is limited to **31 days** per request (API constraint). For longer periods, run in chunks.
+- Money is reported in USD by default (`--currency` or `ADMOB_CURRENCY` to change). Ratios (CTR, match rate) are 0–1 (1.0 = 100%).
+
+### AdMob Ad Units Configuration
+
+Auto-discovery covers most cases. If you prefer to declare ad units explicitly (or restrict the report to specific units), create a JSON file like [`admob_ad_units.example.json`](admob_ad_units.example.json):
+
+```json
+{
+  "com.example.app": [
+    "ca-app-pub-1234567890123456/1234567890"
+  ]
+}
+```
+
+Then run:
+
+```bash
+python3 fetch_admob.py --days 7 --ad-units-config admob_ad_units.json
+```
+
+Declared ad unit IDs are validated against the API — a typo raises a clear error listing the available units.
+
+### AdMob Metrics captured
+
+Per day, per ad unit: `AD_REQUESTS`, `MATCHED_REQUESTS`, `IMPRESSIONS`, `CLICKS`, `ESTIMATED_EARNINGS`, `IMPRESSION_CTR`, `IMPRESSION_RPM` (eCPM), `MATCH_RATE`, `SHOW_RATE`, plus per-ad-unit and per-app totals (CTR, eCPM, match rate).
+
+---
+
 ## Output
 
 All output goes to the `data/` directory.
@@ -370,6 +493,9 @@ All output goes to the `data/` directory.
 | `data/vitals_YYYYMMDD_HHMMSS.json` | Raw API response data for all apps, structured per metric |
 | `data/vitals_YYYYMMDD_HHMMSS_com_example_app1.md` | AI-generated Markdown report for one app |
 | `data/vitals_YYYYMMDD_HHMMSS_com_example_app2.md` | AI-generated Markdown report for another app |
+| `data/reviews_YYYYMMDD_HHMMSS.json` | User reviews data (from `--reviews-only` mode) |
+| `data/admob_YYYYMMDD_HHMMSS.json` | AdMob monetization data per app / ad unit (from `fetch_admob.py`) |
+| `data/admob_YYYYMMDD_HHMMSS_com_example_app1.md` | AI-generated AdMob monetization report for one app |
 
 ### JSON data structure
 
@@ -430,14 +556,19 @@ All output goes to the `data/` directory.
 
 ```
 .
-├── fetch_data.py         # API fetcher: queries Google Play and saves JSON
+├── fetch_data.py         # API fetcher: vitals + reviews, saves JSON
 ├── generate_report.py    # LLM reporter: reads JSON, generates .md per app
-├── run_reports.sh        # Bash orchestrator: fetch + report
+├── fetch_admob.py        # Standalone AdMob fetcher + LLM reporter (OAuth-based)
+├── admob_oauth_setup.py  # One-time helper to generate an AdMob refresh token
+├── admob_ad_units.example.json  # Template for declaring ad units per app
+├── run_reports.sh        # Bash orchestrator: fetch + report (vitals/reviews)
+├── run_admob.sh          # Bash wrapper for AdMob monitoring
 ├── weekly_report.sh      # Convenience: 7-day report shortcut
-├── examples/             # Sanitized sample outputs (report + JSON structure)
+├── examples/             # Sanitized sample outputs (reports + JSON structures)
 ├── .env                  # Your credentials and configuration (gitignored)
 ├── .env.example          # Template for .env
-├── service_account.json  # Your Google service account key (gitignored)
+├── service_account.json  # Google service account key for vitals/reviews (gitignored)
+├── admob_oauth_client.json  # OAuth client JSON for AdMob (gitignored, optional)
 ├── requirements.txt      # Python dependencies
 ├── data/                 # All output files (gitignored)
 └── README.md             # This file

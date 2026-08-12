@@ -3,3 +3,10 @@ service_account.json
 *.pyc
 __pycache__/
 data
+
+# AdMob OAuth client files (contain client_id / client_secret)
+admob_oauth_client.json
+admob_oauth.json
+oauth_client.json
+client_secret*.json
+*client_secret*.json
